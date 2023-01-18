@@ -9,7 +9,8 @@ project(
 
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
 
-set(EXPORT_NAMESPACE "magic_bldr::")
+add_library(magic_builder main.cpp)
+target_include_directories(magic_builder PUBLIC include/)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(CMAKE_CXX_STANDARD 20)
@@ -18,12 +19,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(CMAKE_CXX_EXTENSIONS OFF)
 
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-    set(CMAKE_CXX_COMPILER "clang++")
     set(CMAKE_OUTPUT_DIRECTORY build/bin)
+
+    if(MSVC)
+        target_compile_options(magic_builder PRIVATE /W4 /WX)
+    else()
+        target_compile_options(magic_builder PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+
 endif()
-
-add_library(magic_builder main.cpp)
-target_include_directories(magic_builder PUBLIC include/)
-
-add_executable(magic_builder_test main.cpp)
-target_include_directories(magic_builder_test PUBLIC include/)
