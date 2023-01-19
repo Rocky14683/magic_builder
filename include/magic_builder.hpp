@@ -7,7 +7,7 @@
 namespace magic_bldr {
 
 // clang-format off
-template <typename T, typename Action = typename T::Action>
+template <typename T, typename Action = typename T::Actions>
 concept Checker = requires(T checker, Action action) {
     // T::Action is an enum
     requires std::is_enum_v<Action>;
@@ -33,23 +33,35 @@ concept Checker = requires(T checker, Action action) {
 };
 // clang-format on
 
-template <Checker C, typename A = typename C::Action>
+template <Checker C, typename A = typename C::Actions>
 consteval auto operator+(const C& checker, const A& action) -> C {
     return checker.state_after_action(action);
 } 
 
-template <typename Buildable, Checker Checker, typename Args_t>
+template <typename Derived, typename Buildable, Checker Checker, typename BuilderArgs>
 class Builder {
+  protected:
+    using base_builder = Builder<Derived, Buildable, Checker, BuilderArgs>;
     using Action = typename Checker::Actions;
 
+    BuilderArgs builder_args;
+    
+    template <Action A, typename Arg>
+    consteval void action_to_run(Arg arg) {
+        static_cast<Derived*>(this)->action_to_run<A>(arg);
+    }
+
+  private:  
     template <Checker C = Checker()>
     class Worker {};
 
-    template <Action A>
-    consteval void action_to_run();
-
    public:
-    Builder() {}
+    constexpr Builder() {}
+
+    template<Action A, typename... Args>
+    consteval auto set(Args... args) {
+        action_to_run<A>(std::make_tuple(args...));
+    } 
 };
 
 }  // namespace magic_bldr
