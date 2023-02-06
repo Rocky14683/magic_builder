@@ -3,7 +3,6 @@
 
 #include "magic_builder.hpp"
 
-
 using namespace magic_bldr;
 
 struct myBuildable {
@@ -21,13 +20,16 @@ struct myChecker : Checker<myChecker, myBuildable, myActions, myBuildData> {
     const bool b_is_set = false;
     const bool c_is_set = false;
 
-    constexpr myChecker(const bool a_is_set, const bool b_is_set, const bool c_is_set)
+    constexpr myChecker(const bool a_is_set, const bool b_is_set,
+                        const bool c_is_set)
         : a_is_set{a_is_set}, b_is_set{b_is_set}, c_is_set{c_is_set} {}
+    myChecker() = default;
 
     consteval myChecker change_fields(std::optional<bool> a,
                                       std::optional<bool> b,
                                       std::optional<bool> c) const {
-        return {a.value_or(a_is_set), b.value_or(b_is_set), c.value_or(c_is_set)};
+        return {a.value_or(a_is_set), b.value_or(b_is_set),
+                c.value_or(c_is_set)};
     }
 
     consteval bool ready() const { return a_is_set && b_is_set && c_is_set; }
