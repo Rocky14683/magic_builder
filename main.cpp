@@ -12,13 +12,11 @@ struct myBuildable {
     int c;
 };
 
-template <typename Checker, typename Checker::Action A>
-struct ActionDetail {};
+using myBuildData = myBuildable;
 
-struct myChecker {
-    enum class Action { set_a, set_b, set_c, set_a_and_b };
-    using BuildData = myBuildable; 
+enum class myActions { set_a, set_b, set_c, set_a_and_b };
 
+struct myChecker : Checker<myChecker, myBuildable, myActions, myBuildData> {
     const bool a_is_set = false;
     const bool b_is_set = false;
     const bool c_is_set = false;
@@ -31,14 +29,14 @@ struct myChecker {
                 c.value_or(c_is_set)};
     }
 
-    template <Action A = Action::set_a>
+    template <Action A>
     myChecker state_after() const {
-        return ActionDetail<myChecker, A>::state_after(*this);
+        return ActionDetail<A>::state_after(*this);
     }
 
-    template <Action A = Action::set_a>
+    template <Action A>
     consteval bool is_allowed() const {
-        return ActionDetail<myChecker, A>::is_allowed(*this);
+        return ActionDetail<A>::is_allowed(*this);
     }
 
     consteval bool ready() const {
@@ -46,62 +44,70 @@ struct myChecker {
     }
 };
 
-using Action = myChecker::Action;
-
 template <>
-struct ActionDetail<myChecker, Action::set_a> {
+struct myChecker::ActionDetail<myActions::set_a> {
     using ArgType = int;
-    using BuildData = typename myChecker::BuildData;
+
     consteval static auto state_after(const myChecker& checker) {
         return checker.change_fields(true, std::nullopt, std::nullopt);
     }
+
     consteval static auto is_allowed(const myChecker& checker) {
         return !checker.a_is_set;
     }
+
     static void run(BuildData& b, ArgType arg) {
         b.a = arg;
     }
 };
 
 template <>
-struct ActionDetail<myChecker, Action::set_b> {
+struct myChecker::ActionDetail<myActions::set_b> {
     using ArgType = int;
-    using BuildData = typename myChecker::BuildData;
+    
     consteval static myChecker state_after(const myChecker& checker) {
         return checker.change_fields(std::nullopt, true, std::nullopt);
     }
+
     consteval static bool is_allowed(const myChecker& checker) {
         return !checker.b_is_set;
     }
+
     static void run(BuildData& b, ArgType arg) {
         b.b = arg;
     }
 };
+
 template <>
-struct ActionDetail<myChecker, Action::set_c> {
+struct myChecker::ActionDetail<myActions::set_c> {
     using ArgType = int;
-    using BuildData = typename myChecker::BuildData;
+
     consteval static myChecker state_after(const myChecker& checker) {
         return checker.change_fields(std::nullopt, std::nullopt, true);
     }
+
     consteval static bool is_allowed(const myChecker& checker) {
         return !checker.c_is_set;
     }
+
     static void run(BuildData& b, ArgType arg) {
         b.c = arg;
     }
 };
+
 template <>
-struct ActionDetail<myChecker, Action::set_a_and_b> {
+struct myChecker::ActionDetail<myActions::set_a_and_b> {
     using ArgType = std::tuple<int, int>;
-    using BuildData = typename myChecker::BuildData;
+
     consteval static myChecker state_after(const myChecker& checker) {
         return checker.change_fields(true, true, std::nullopt);
     }
+
     consteval static bool is_allowed(const myChecker& checker) {
         return !checker.a_is_set && !checker.b_is_set;
     }
-    static void run(BuildData& b, ArgType arg) {
+
+    static void run(BuildData& b, const ArgType& arg) {
         std::tie(b.a, b.b) = arg;
     }
 };
@@ -110,13 +116,13 @@ struct ActionDetail<myChecker, Action::set_a_and_b> {
 // static_assert(ActionArgLike<myChecker::ActionDetail<myChecker::Action::set_a>, myChecker>);
 
 
-class myBuilder : Builder<myBuilder, myBuildable, myChecker, myBuildable> {
+class myBuilder : Builder<myBuilder, myChecker> {
    public:
-    template <Action A, typename Arg>
+    template <myActions A, typename Arg>
     consteval void action_to_run(Arg arg);
 
     template <>
-    consteval void action_to_run<Action::set_a>(int arg) {
+    consteval void action_to_run<myActions::set_a>(int arg) {
         builder_args.a = arg;
     }
 };
