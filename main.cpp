@@ -1,62 +1,27 @@
 #include <optional>
+#include <type_traits>
 
 #include "magic_builder.hpp"
+#include <type_traits>
 
 using namespace magic_bldr;
 
+struct myBuildable {
+    int a;
+    int b;
+    int c;
+};
+
+template <typename Checker, typename Checker::Action A>
+struct ActionDetail {};
+
 struct myChecker {
     enum class Action { set_a, set_b, set_c, set_a_and_b };
-    template <Action A>
-    struct ActionArgs {};
-    template <>
-    struct ActionArgs<Action::set_a> {
-        using ArgType = int;
-        consteval static auto state_after(const myChecker& checker) {
-            return checker.change_fields(true, std::nullopt, std::nullopt);
-        }
-        consteval static auto is_allowed(const myChecker& checker) {
-            return !checker.a_is_set;
-        }
-    };
-    template <>
-    struct ActionArgs<Action::set_b> {
-        using ArgType = int;
-        consteval static myChecker state_after(const myChecker& checker) {
-            return checker.change_fields(std::nullopt, true, std::nullopt);
-        }
-        consteval static bool is_allowed(const myChecker& checker) {
-            return !checker.b_is_set;
-        }
-    };
-    template <>
-    struct ActionArgs<Action::set_c> {
-        using ArgType = int;
-        consteval static myChecker state_after(const myChecker& checker) {
-            return checker.change_fields(std::nullopt, std::nullopt, true);
-        }
-        consteval static bool is_allowed(const myChecker& checker) {
-            return !checker.c_is_set;
-        }
-    };
-    template <>
-    struct ActionArgs<Action::set_a_and_b> {
-        using ArgType = std::tuple<int, int>;
-        consteval static myChecker state_after(const myChecker& checker) {
-            return checker.change_fields(true, true, std::nullopt);
-        }
-        consteval static bool is_allowed(const myChecker& checker) {
-            return !checker.a_is_set && !checker.b_is_set;
-        }
-    };
+    using BuildData = myBuildable; 
 
     const bool a_is_set = false;
     const bool b_is_set = false;
     const bool c_is_set = false;
-
-    template <Action A>
-    consteval myChecker state_after() const {
-        return ActionArgs<A>::state_after(*this);
-    }
 
     consteval myChecker change_fields(
         std::optional<decltype(a_is_set)> a,
@@ -66,18 +31,84 @@ struct myChecker {
                 c.value_or(c_is_set)};
     }
 
-    template <Action A>
-    consteval bool is_allowed() {
-        return ActionArgs<A>::is_allowed(*this);
+    template <Action A = Action::set_a>
+    myChecker state_after() const {
+        return ActionDetail<myChecker, A>::state_after(*this);
+    }
+
+    template <Action A = Action::set_a>
+    consteval bool is_allowed() const {
+        return ActionDetail<myChecker, A>::is_allowed(*this);
+    }
+
+    consteval bool ready() const {
+        return a_is_set && b_is_set && c_is_set;
     }
 };
-// static_assert(Checker<myChecker>);
 
-struct myBuildable {
-    int a;
-    int b;
-    int c;
+using Action = myChecker::Action;
+
+template <>
+struct ActionDetail<myChecker, Action::set_a> {
+    using ArgType = int;
+    using BuildData = typename myChecker::BuildData;
+    consteval static auto state_after(const myChecker& checker) {
+        return checker.change_fields(true, std::nullopt, std::nullopt);
+    }
+    consteval static auto is_allowed(const myChecker& checker) {
+        return !checker.a_is_set;
+    }
+    static void run(BuildData& b, ArgType arg) {
+        b.a = arg;
+    }
 };
+
+template <>
+struct ActionDetail<myChecker, Action::set_b> {
+    using ArgType = int;
+    using BuildData = typename myChecker::BuildData;
+    consteval static myChecker state_after(const myChecker& checker) {
+        return checker.change_fields(std::nullopt, true, std::nullopt);
+    }
+    consteval static bool is_allowed(const myChecker& checker) {
+        return !checker.b_is_set;
+    }
+    static void run(BuildData& b, ArgType arg) {
+        b.b = arg;
+    }
+};
+template <>
+struct ActionDetail<myChecker, Action::set_c> {
+    using ArgType = int;
+    using BuildData = typename myChecker::BuildData;
+    consteval static myChecker state_after(const myChecker& checker) {
+        return checker.change_fields(std::nullopt, std::nullopt, true);
+    }
+    consteval static bool is_allowed(const myChecker& checker) {
+        return !checker.c_is_set;
+    }
+    static void run(BuildData& b, ArgType arg) {
+        b.c = arg;
+    }
+};
+template <>
+struct ActionDetail<myChecker, Action::set_a_and_b> {
+    using ArgType = std::tuple<int, int>;
+    using BuildData = typename myChecker::BuildData;
+    consteval static myChecker state_after(const myChecker& checker) {
+        return checker.change_fields(true, true, std::nullopt);
+    }
+    consteval static bool is_allowed(const myChecker& checker) {
+        return !checker.a_is_set && !checker.b_is_set;
+    }
+    static void run(BuildData& b, ArgType arg) {
+        std::tie(b.a, b.b) = arg;
+    }
+};
+
+// static_assert(Checker<myChecker>);
+// static_assert(ActionArgLike<myChecker::ActionDetail<myChecker::Action::set_a>, myChecker>);
+
 
 class myBuilder : Builder<myBuilder, myBuildable, myChecker, myBuildable> {
    public:

@@ -5,9 +5,8 @@
 #include <type_traits>
 
 namespace magic_bldr {
-
 // clang-format off
-template <typename T, typename Action = typename T::Actions>
+template <typename T, typename Action = typename T::Action>
 concept Checker = requires(T checker, Action action) {
     // T::Action is an enum
     requires std::is_enum_v<Action>;
@@ -20,48 +19,69 @@ concept Checker = requires(T checker, Action action) {
     } -> std::same_as<std::true_type>;  
 
     // T::state_after returns T and is constant-evaluable
-    { checker.state_after(action) } -> std::same_as<T>;
+    // { checker.template state_after<Action()>() } -> std::same_as<T>;
+    checker.state_after();
     {
-        std::bool_constant<(T().state_after(Action()), true)>()
+        std::bool_constant<(T().state_after(), true)>()
     } -> std::same_as<std::true_type>;
 
     // T::is_allowed returns bool and is constant-evaluable
-    { checker.is_allowed(action) } -> std::same_as<bool>;
+    { checker.is_allowed() } -> std::same_as<bool>;
     {
-        std::bool_constant<(T().is_allowed(Action()), true)>()
-    } -> std::same_as<std::true_type>; 
+        std::bool_constant<(T().is_allowed(), true)>()
+    } -> std::same_as<std::true_type>;
+};
+
+template <typename AA, typename C>
+concept ActionArgLike = requires(C c) {
+    // AA has an ArgType defined
+    typename AA::ArgType;
+
+    // AA::state_after is constant evaluable and returns C
+    { AA::state_after(c) } -> std::same_as<C>;
+    { // Explanation: https://stackoverflow.com/a/69515693
+        std::bool_constant<(AA::state_after(C()), true)>()
+    } -> std::same_as<std::true_type>;
+
+    // AA::is_allowed is constant evaluable and returns bool
+    { AA::is_allowed(c) } -> std::same_as<bool>;
+    { // Explanation: https://stackoverflow.com/a/69515693
+        std::bool_constant<(AA::is_allowed(C()), true)>()
+    } -> std::same_as<std::true_type>;
 };
 // clang-format on
+
 
 template <Checker C, typename A = typename C::Actions>
 consteval auto operator+(const C& checker, const A& action) -> C {
     return checker.state_after_action(action);
-} 
+}
 
-template <typename Derived, typename Buildable, Checker Checker, typename BuilderArgs>
+template <typename Derived, typename Buildable, typename Checker,
+          typename BuilderArgs>
 class Builder {
-  protected:
+   protected:
     using base_builder = Builder<Derived, Buildable, Checker, BuilderArgs>;
-    using Action = typename Checker::Actions;
+    using Action = typename Checker::Action;
 
     BuilderArgs builder_args;
-    
+
     template <Action A, typename Arg>
     consteval void action_to_run(Arg arg) {
         static_cast<Derived*>(this)->action_to_run<A>(arg);
     }
 
-  private:  
+   private:
     template <Checker C = Checker()>
     class Worker {};
 
    public:
     constexpr Builder() {}
 
-    template<Action A, typename... Args>
+    template <Action A, typename... Args>
     consteval auto set(Args... args) {
-        action_to_run<A>(std::make_tuple(args...));
-    } 
+        return action_to_run<A>(std::make_tuple(args...));
+    }
 };
 
 }  // namespace magic_bldr
