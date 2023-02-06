@@ -2,7 +2,7 @@
 #include <type_traits>
 
 #include "magic_builder.hpp"
-#include <type_traits>
+
 
 using namespace magic_bldr;
 
@@ -21,27 +21,16 @@ struct myChecker : Checker<myChecker, myBuildable, myActions, myBuildData> {
     const bool b_is_set = false;
     const bool c_is_set = false;
 
-    consteval myChecker change_fields(
-        std::optional<decltype(a_is_set)> a,
-        std::optional<decltype(b_is_set)> b,
-        std::optional<decltype(c_is_set)> c) const {
-        return {a.value_or(a_is_set), b.value_or(b_is_set),
-                c.value_or(c_is_set)};
+    constexpr myChecker(const bool a_is_set, const bool b_is_set, const bool c_is_set)
+        : a_is_set{a_is_set}, b_is_set{b_is_set}, c_is_set{c_is_set} {}
+
+    consteval myChecker change_fields(std::optional<bool> a,
+                                      std::optional<bool> b,
+                                      std::optional<bool> c) const {
+        return {a.value_or(a_is_set), b.value_or(b_is_set), c.value_or(c_is_set)};
     }
 
-    template <Action A>
-    myChecker state_after() const {
-        return ActionDetail<A>::state_after(*this);
-    }
-
-    template <Action A>
-    consteval bool is_allowed() const {
-        return ActionDetail<A>::is_allowed(*this);
-    }
-
-    consteval bool ready() const {
-        return a_is_set && b_is_set && c_is_set;
-    }
+    consteval bool ready() const { return a_is_set && b_is_set && c_is_set; }
 };
 
 template <>
@@ -56,15 +45,13 @@ struct myChecker::ActionDetail<myActions::set_a> {
         return !checker.a_is_set;
     }
 
-    static void run(BuildData& b, ArgType arg) {
-        b.a = arg;
-    }
+    static void run(BuildData& b, ArgType arg) { b.a = arg; }
 };
 
 template <>
 struct myChecker::ActionDetail<myActions::set_b> {
     using ArgType = int;
-    
+
     consteval static myChecker state_after(const myChecker& checker) {
         return checker.change_fields(std::nullopt, true, std::nullopt);
     }
@@ -73,9 +60,7 @@ struct myChecker::ActionDetail<myActions::set_b> {
         return !checker.b_is_set;
     }
 
-    static void run(BuildData& b, ArgType arg) {
-        b.b = arg;
-    }
+    static void run(BuildData& b, ArgType arg) { b.b = arg; }
 };
 
 template <>
@@ -90,9 +75,7 @@ struct myChecker::ActionDetail<myActions::set_c> {
         return !checker.c_is_set;
     }
 
-    static void run(BuildData& b, ArgType arg) {
-        b.c = arg;
-    }
+    static void run(BuildData& b, ArgType arg) { b.c = arg; }
 };
 
 template <>
@@ -113,8 +96,8 @@ struct myChecker::ActionDetail<myActions::set_a_and_b> {
 };
 
 // static_assert(Checker<myChecker>);
-// static_assert(ActionArgLike<myChecker::ActionDetail<myChecker::Action::set_a>, myChecker>);
-
+// static_assert(ActionArgLike<myChecker::ActionDetail<myChecker::Action::set_a>,
+// myChecker>);
 
 class myBuilder : Builder<myBuilder, myChecker> {
    public:

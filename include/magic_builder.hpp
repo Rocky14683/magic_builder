@@ -66,6 +66,16 @@ class Checker {
 
     template <Action A>
     struct ActionDetail {};
+
+    template <Action A>
+    Derived state_after() const {
+        return ActionDetail<A>::state_after(*this);
+    }
+
+    template <Action A>
+    consteval bool is_allowed() const {
+        return ActionDetail<A>::is_allowed(*this);
+    }
 };
 
 
