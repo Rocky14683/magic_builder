@@ -57,22 +57,26 @@ namespace magic_bldr {
 //     return checker.state_after_action(action);
 // }
 
-template <typename Derived, typename Buildable_, typename Action_, typename BuildData_>
+template <typename Checker>
+struct checker_traits;
+
+template <typename Derived>
 class Checker {
+    using Traits = checker_traits<Derived>;
+
   public:
-    using Action = Action_;
-    using BuildData = BuildData_;
-    using Buildable = Buildable_;
+    using Actions = typename Traits::Actions;
+    using BuildData = typename Traits::BuildData;
+    using Buildable = typename Traits::Buildable;
 
-    template <Action A>
-    struct ActionDetail {};
+    template <Actions A> struct ActionDetail {};
 
-    template <Action A>
+    template <Actions A>
     Derived state_after() const {
         return ActionDetail<A>::state_after(*this);
     }
 
-    template <Action A>
+    template <Actions A>
     consteval bool is_allowed() const {
         return ActionDetail<A>::is_allowed(*this);
     }

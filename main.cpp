@@ -13,34 +13,32 @@ struct myBuildable {
 
 using myBuildData = myBuildable;
 
-enum class myActions { set_a, set_b, set_c, set_a_and_b };
+struct myChecker : Checker<myChecker> {
+    bool a_is_set = false;
+    bool b_is_set = false;
+    bool c_is_set = false;
 
-struct myChecker : Checker<myChecker, myBuildable, myActions, myBuildData> {
-    const bool a_is_set = false;
-    const bool b_is_set = false;
-    const bool c_is_set = false;
-
-    constexpr myChecker(const bool a_is_set, const bool b_is_set,
-                        const bool c_is_set)
-        : a_is_set{a_is_set}, b_is_set{b_is_set}, c_is_set{c_is_set} {}
+    // ctors necessary because first entry of aggregate initialization is the 
+    // fucking base class. ugh
+    myChecker(bool a, bool b, bool c) : a_is_set(a), b_is_set(b), c_is_set(c) {}
     myChecker() = default;
-
-    consteval myChecker change_fields(std::optional<bool> a,
-                                      std::optional<bool> b,
-                                      std::optional<bool> c) const {
-        return {a.value_or(a_is_set), b.value_or(b_is_set),
-                c.value_or(c_is_set)};
-    }
 
     consteval bool ready() const { return a_is_set && b_is_set && c_is_set; }
 };
 
-template <>
-struct myChecker::ActionDetail<myActions::set_a> {
+template<typename Checker>
+struct checker_traits<myChecker> {
+    enum class Actions { set_a, set_b, set_c, set_a_and_b };
+    using Buildable = myBuildable;
+    using BuildData = myBuildData;
+};
+
+struct myChecker::ActionDetail {
     using ArgType = int;
 
-    consteval static auto state_after(const myChecker& checker) {
-        return checker.change_fields(true, std::nullopt, std::nullopt);
+    consteval static myChecker state_after(myChecker c) {
+        c.a_is_set = true;
+        return c;
     }
 
     consteval static auto is_allowed(const myChecker& checker) {
@@ -54,8 +52,11 @@ template <>
 struct myChecker::ActionDetail<myActions::set_b> {
     using ArgType = int;
 
-    consteval static myChecker state_after(const myChecker& checker) {
-        return checker.change_fields(std::nullopt, true, std::nullopt);
+    consteval static myChecker state_after(myChecker c) {
+        c.b_is_set = true;
+        return c;
+        // return {c.a_is_set, true, c.c_is_set};
+        // return checker.change_fields(std::nullopt, true, std::nullopt);
     }
 
     consteval static bool is_allowed(const myChecker& checker) {
@@ -69,8 +70,10 @@ template <>
 struct myChecker::ActionDetail<myActions::set_c> {
     using ArgType = int;
 
-    consteval static myChecker state_after(const myChecker& checker) {
-        return checker.change_fields(std::nullopt, std::nullopt, true);
+    consteval static myChecker state_after(myChecker c) {
+        // return {c.a_is_set, c.b_is_set, true};
+        c.c_is_set = true;
+        return c;
     }
 
     consteval static bool is_allowed(const myChecker& checker) {
@@ -84,8 +87,11 @@ template <>
 struct myChecker::ActionDetail<myActions::set_a_and_b> {
     using ArgType = std::tuple<int, int>;
 
-    consteval static myChecker state_after(const myChecker& checker) {
-        return checker.change_fields(true, true, std::nullopt);
+    consteval static myChecker state_after(myChecker c) {
+        // return {true, true, c.c_is_set};
+        c.a_is_set = true;
+        c.b_is_set = true;
+        return c;
     }
 
     consteval static bool is_allowed(const myChecker& checker) {
@@ -112,4 +118,9 @@ class myBuilder : Builder<myBuilder, myChecker> {
     }
 };
 
-int main() { myBuilder().action_to_run<myChecker::Action::set_a>(5); }
+template <myChecker C>
+struct A {};
+
+int main() {
+    // myBuilder().action_to_run<myChecker::Action::set_a>(5);
+}
