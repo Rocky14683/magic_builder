@@ -18,7 +18,7 @@ struct CommitData {
     std::optional<std::string> squash_hash;
 };
 
-struct CommitVerifier : magic_bldr::Verifier<CommitVerifier> {
+struct CommitValidator : magic_bldr::Validator<CommitValidator> {
     enum class Action {
         AddMessage,
         AddFolder,
@@ -44,9 +44,9 @@ struct CommitVerifier : magic_bldr::Verifier<CommitVerifier> {
         return has_message && has_adds && has_timestamp && has_author;
     };
 
-    consteval CommitVerifier state_after(Action a) const {
+    consteval CommitValidator state_after(Action a) const {
         using enum Action;
-        using CV = CommitVerifier;
+        using CV = CommitValidator;
         switch (a) {
             case AddMessage:
                 return set(&CV::has_message, true);
@@ -77,10 +77,10 @@ struct CommitVerifier : magic_bldr::Verifier<CommitVerifier> {
 
 class Commit : CommitData {};
 
-template <CommitVerifier V = CommitVerifier{}>
-class CommitBuilder : private magic_bldr::Builder<Commit, CommitVerifier, CommitData, CommitBuilder, V> {
+template <CommitValidator V = CommitValidator{}>
+class CommitBuilder : private magic_bldr::Builder<Commit, CommitValidator, CommitData, CommitBuilder, V> {
   private:
-    using MB = magic_bldr::Builder<Commit, CommitVerifier, CommitData, CommitBuilder, V>;
+    using MB = magic_bldr::Builder<Commit, CommitValidator, CommitData, CommitBuilder, V>;
 
   public:
     CommitBuilder() = default;

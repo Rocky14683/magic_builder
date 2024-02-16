@@ -10,10 +10,10 @@ namespace magic_bldr {
 
 namespace detail {
 template <typename A, typename V>
-concept IsActionOfVerifier = std::same_as<A, typename V::Action>;
+concept IsActionOfValidator = std::same_as<A, typename V::Action>;
 
 template <typename V, typename A>
-concept IsVerifierOfAction = std::same_as<A, typename V::Action>;
+concept IsValidatorOfAction = std::same_as<A, typename V::Action>;
 
 }
 
@@ -27,7 +27,7 @@ struct TemplateStringLiteral {
 };
 
 template <typename Derived>
-class Verifier {
+class Validator {
     template <typename... Ts>
     struct MultiSetField;
 
@@ -83,7 +83,7 @@ class Verifier {
     };
 
   public:
-    consteval auto operator+(detail::IsActionOfVerifier<Derived> auto rhs) const {
+    consteval auto operator+(detail::IsActionOfValidator<Derived> auto rhs) const {
         return static_cast<const Derived*>(this)->state_after(rhs);
     }
 
@@ -100,13 +100,13 @@ template <auto A>
 struct ActionImpl {
     static constexpr void run(auto builder_data, auto... args) = delete;
 
-    static consteval auto is_allowed(detail::IsVerifierOfAction<decltype(A)> auto) = delete;
+    static consteval auto is_allowed(detail::IsValidatorOfAction<decltype(A)> auto) = delete;
 };
 
 
-template <typename Buildable, typename Verifier_, typename BuilderData, template <Verifier_> typename Derived, Verifier_ V>
+template <typename Buildable, typename Validator_, typename BuilderData, template <Validator_> typename Derived, Validator_ V>
 class Builder {
-    template <typename, typename Ver, typename, template <Ver> typename, Ver>
+    template <typename, typename Vdtr, typename, template <Vdtr> typename, Vdtr>
     friend class Builder; 
 
     BuilderData data;
@@ -114,7 +114,7 @@ class Builder {
     Builder(BuilderData&& data) : data{std::move(data)} {}
 
   protected:
-    using Action = typename Verifier_::Action;
+    using Action = typename Validator_::Action;
 
     template <Action A, typename... Args>
     requires (ActionImpl<A>::is_allowed(V))
