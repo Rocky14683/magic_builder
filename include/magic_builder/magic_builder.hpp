@@ -5,6 +5,8 @@
 #include <functional>
 #include <type_traits>
 #include <utility>
+#include <algorithm>
+#include <set>
 
 namespace magic_bldr {
 
@@ -107,7 +109,7 @@ struct ActionImpl {
 template <typename Buildable, typename Validator_, typename BuilderData, template <Validator_> typename Derived, Validator_ V>
 class Builder {
     template <typename, typename Vdtr, typename, template <Vdtr> typename, Vdtr>
-    friend class Builder; 
+    friend class Builder;
 
     BuilderData data;
 
@@ -135,7 +137,7 @@ class Builder {
 
 inline namespace utils {
 
-consteval bool is_in(auto a, std::initializer_list<decltype(a)> list) {
+constexpr bool is_in(auto a, std::initializer_list<decltype(a)> list) {
     return std::find(list.begin(), list.end(), a) != list.end();
 }
 
